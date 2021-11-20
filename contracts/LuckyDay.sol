@@ -18,13 +18,6 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 
 /**
- * @dev Helps contracts guard against reentrancy attacks.
- *      If you mark a function `nonReentrant`, you should also mark it `external`.
- */
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol";
-
-
-/**
  * @dev Contract module which provides verifiable randomness 
  */
 import "https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/v0.8/VRFConsumerBase.sol"; 
@@ -37,20 +30,22 @@ import "https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/
  * @title FiftyFifty
  * @dev Contract, inheriting from Ownable.sol and VRFConsumerBase.sol, for player vs player betting.
  */
-contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase {  
+contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {  
     
     
-    uint256 public MAX_SUPPLY = 5; 
-    uint256 public cost = 0.01 ether;  // cost of minting 
+    uint256 public MAX_SUPPLY = 5; // 20,000 in real thing
+    uint256 public cost = 0.05 ether;  // cost of minting 
+    
     bool public generalSaleStatus = false;
+    
     string public baseExtension = ".json";
     uint public previousRaffleDrawTimeStamp;
     
-     string public baseURI = "ipfs://QmfJctvqKgik28etZYtZUAbiQmZ7amj7rpsuEZjxFVmgEL/"; // %%%%%%%%%
+    string public baseURI = "ipfs://QmfJctvqKgik28etZYtZUAbiQmZ7amj7rpsuEZjxFVmgEL/"; // %%%%%%%%%
     
-    address payable payee1 = payable(0xfeA1Da35BD38e80DC81b7B9A32aEf0E66bD07654); // %%%%%%%%%%
-    address payable payee2 = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
-    address payable payee3 = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
+    address payable A = payable(0xfeA1Da35BD38e80DC81b7B9A32aEf0E66bD07654); // %%%%%%%%%%
+    address payable B = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
+    address payable C = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
     
     
     // VRF VARIABLES //
@@ -76,7 +71,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase
     {
         
         keyHash = 0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4; // for Polygon Mumbai Test Network ONLY
-        fee = 0.0001 * 10 ** 18; // 0.0001 LINK for Polygon ONLY
+        fee = 0.0001 * 10 ** 18; // 0.0001 LINK VRF fee for Polygon ONLY
         
     }
     
@@ -93,17 +88,22 @@ contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase
     mapping(bytes32 => bool) outstandingVRFcalls;
     
     
+    /**
+     *   @notice Will receive any tokens sent to the contract
+     */
+    receive() external payable {}
+    
+    
     
     // NFT FUNCTIONS //
     
     
     function mint(uint256 _num) public payable { 
-
-        require(msg.value == _num * cost, "Incorrect funds supplied"); // mint cost
-        require(generalSaleStatus, "It's not time yet"); // checks general sale is live
-        require(_num > 0 && _num <= 3, "Maximum of 3 mints allowed"); // mint limit per tx
-        require(totalSupply() + _num <= MAX_SUPPLY, "Minting that many would exceed max supply");
         
+        require(generalSaleStatus, "It's not time yet"); // checks general sale is live
+        require(msg.value == _num * cost, "Incorrect funds supplied"); // mint cost
+        require(_num > 0 && _num <= 50, "Maximum of 50 mints allowed"); // mint limit per tx
+        require(totalSupply() + _num <= MAX_SUPPLY, "Minting that many would exceed max supply");
         
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
@@ -111,6 +111,8 @@ contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase
             emit TokenMinted(tokenId);
             
         }
+        
+        // pay out to A, B and C
     }
     
     
@@ -119,7 +121,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase
     
     
     function startRaffleDraw() public {
-        require(block.timestamp >= (previousRaffleDrawTimeStamp + (7*24*60*60)), "A week has not passed since the last raffle draw");
+        require(block.timestamp >= (previousRaffleDrawTimeStamp + (7*24*60*60)), "A week has not passed since the last raffle draw"); // change to be 7pm on certain day
         previousRaffleDrawTimeStamp = block.timestamp;
         outstandingVRFcalls[getRandomNumber()] = true;
     }
@@ -130,19 +132,20 @@ contract LuckyDay is Ownable, ERC721Enumerable, ReentrancyGuard, VRFConsumerBase
     }
     
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
+        
         require(outstandingVRFcalls[requestId] == true, "No outstanding VRF call for this requestId");
-        randomResult = randomness % totalSupply(); // returns value between 0 and the totalSupply
         outstandingVRFcalls[getRandomNumber()] = false;
+        
+        randomResult = (randomness % totalSupply()) + 1; // returns value between 1 and the totalSupply
         emit WinningTokenId(randomResult);
-        // get address of owner of tokenId = randomResult
-        // send them a fraction of the contract ether balance
-  
+
+        address winner = ownerOf(randomResult); // gets address of token owner
+        uint winnings = address(this).balance / 10; // possible ether losses due to rounding
+        
+        payable(winner).transfer(winnings);
     }
     
     
-    function startRaffle() public {
-        getRandomNumber();
-    }
     
     
     
