@@ -33,27 +33,29 @@ import "https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/
 contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {  
     
     
-    uint256 public MAX_SUPPLY = 5; // 20,000 in real thing
-    uint256 public cost = 0.05 ether;  // cost of minting 
+    uint256 public MAX_SUPPLY = 20000; // 20,000 in real thing
+    uint256 public cost = 0.05 ether;  // cost of minting // EDIT FOR POLYGON %%%%%%%
     
     bool public generalSaleStatus = false;
     
     string public baseExtension = ".json";
-    uint public previousRaffleDrawTimeStamp;
+    uint public firstRaffleTimestamp = 1637771383; // EDIT BEFORE PRODUCTION DEPLOYMENT %%%%%%%%%
+    uint public numberOfDraws;
     
     string public baseURI = "ipfs://QmfJctvqKgik28etZYtZUAbiQmZ7amj7rpsuEZjxFVmgEL/"; // %%%%%%%%%
     
-    address payable A = payable(0xfeA1Da35BD38e80DC81b7B9A32aEf0E66bD07654); // %%%%%%%%%%
-    address payable B = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
-    address payable C = payable(0x62d69B9D6f30Df31877AbDB92993Cb374D1C421E); // %%%%%%%%%%
+    address payable A = payable(0x8641748C05C3AbB0a29A07c8A425c160dCB5Ade1); // %%%%%%%%%%
+    address payable B = payable(0xB70D6076ee01Be23C93aadF00754864c82cc44A8); // %%%%%%%%%%
+    address payable C = payable(0xfAEB58f87e74DC1A7220efdeFb5633De543C0cB8); // %%%%%%%%%%
     
     
     // VRF VARIABLES //
     
-    bytes32 public keyHash;
-    uint256 public fee;
+    bytes32 public keyHash = 0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4; // for Polygon Mumbai Test Network ONLY %%%%%
+    uint256 public fee = 0.0001 * 10 ** 18; // 0.0001 LINK VRF fee for Polygon ONLY %%%%
     uint256 public randomResult;
-    
+
+   
     
     // CONSTRUCTOR //
     
@@ -65,15 +67,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         Ownable() 
         ERC721("Lucky Day", "LUCKY") 
         VRFConsumerBase(
-            0x8C7382F9D8f56b33781fE506E897a4F1e2d17255,  // VRF Coordinator for Polygon Mumbai Test Network ONLY
-            0x326C977E6efc84E512bB9C30f76E30c160eD06FB  // LINK Token address on Polygon Mumbai Test Network ONLY
-            )  
-    {
-        
-        keyHash = 0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4; // for Polygon Mumbai Test Network ONLY
-        fee = 0.0001 * 10 ** 18; // 0.0001 LINK VRF fee for Polygon ONLY
-        
-    }
+            0x8C7382F9D8f56b33781fE506E897a4F1e2d17255,  // VRF Coordinator for Polygon Mumbai Test Network ONLY %%%%
+            0x326C977E6efc84E512bB9C30f76E30c160eD06FB  // LINK Token address on Polygon Mumbai Test Network ONLY %%%%
+        ) {}
     
     
     // EVENTS //
@@ -111,8 +107,14 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             emit TokenMinted(tokenId);
             
         }
+
+        uint commission = msg.value / 10;
+        uint cut = commission / 3;
+
+        A.transfer(cut);
+        B.transfer(cut);
+        C.transfer(cut);
         
-        // pay out to A, B and C
     }
     
     
@@ -121,8 +123,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     
     
     function startRaffleDraw() public {
-        require(block.timestamp >= (previousRaffleDrawTimeStamp + (7*24*60*60)), "A week has not passed since the last raffle draw"); // change to be 7pm on certain day
-        previousRaffleDrawTimeStamp = block.timestamp;
+        require(LINK.balanceOf(address(this)) >= fee, "Insufficient LINK to cover VRF fee");
+        //require(block.timestamp >= (firstRaffleTimestamp + (numberOfDraws*7*24*60*60)), "It's not time yet!"); 
+        numberOfDraws++;
         outstandingVRFcalls[getRandomNumber()] = true;
     }
     
@@ -131,16 +134,19 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         return requestRandomness(keyHash, fee);
     }
     
+
+    address public winner; // TESTING ONLY
+
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         
-        require(outstandingVRFcalls[requestId] == true, "No outstanding VRF call for this requestId");
-        outstandingVRFcalls[getRandomNumber()] = false;
+        require(outstandingVRFcalls[requestId], "No outstanding VRF call for this requestId");
+        outstandingVRFcalls[requestId] = false;
         
         randomResult = (randomness % totalSupply()) + 1; // returns value between 1 and the totalSupply
         emit WinningTokenId(randomResult);
 
-        address winner = ownerOf(randomResult); // gets address of token owner
-        uint winnings = address(this).balance / 10; // possible ether losses due to rounding
+        winner = ownerOf(randomResult); // gets address of winning token owner
+        uint winnings = address(this).balance / 10; 
         
         payable(winner).transfer(winnings);
     }
@@ -234,6 +240,22 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             emit TokenMinted(tokenId);
         }
         
+    }
+
+
+
+    // TEST PURPOSES
+
+    function viewBalance() public view returns(uint) {
+        return address(this).balance;
+    }
+
+    function testMint(uint _num) public {
+        for (uint256 i = 0; i < _num; i++) {
+            uint tokenId = totalSupply() + 1;
+            _mint(msg.sender, tokenId);
+            emit TokenMinted(tokenId);
+        }
     }
     
 }
