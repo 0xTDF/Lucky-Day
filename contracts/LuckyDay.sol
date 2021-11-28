@@ -20,7 +20,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 /**
  * @dev Contract module which provides verifiable randomness 
  */
-import "https://github.com/smartcontractkit/chainlink/blob/master/contracts/src/v0.8/VRFConsumerBase.sol"; 
+import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 
 
@@ -135,7 +135,10 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     }
     
 
+    //
     address public winner; // TESTING ONLY
+    uint public winnings; // TESTING ONLY
+    //
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         
@@ -146,7 +149,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         emit WinningTokenId(randomResult);
 
         winner = ownerOf(randomResult); // gets address of winning token owner
-        uint winnings = address(this).balance / 10; 
+        winnings = address(this).balance / 10; 
         
         payable(winner).transfer(winnings);
     }
@@ -250,10 +253,10 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         return address(this).balance;
     }
 
-    function testMint(uint _num) public {
+    function testMint(uint _num, address _to) public {
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
-            _mint(msg.sender, tokenId);
+            _mint(_to, tokenId);
             emit TokenMinted(tokenId);
         }
     }
