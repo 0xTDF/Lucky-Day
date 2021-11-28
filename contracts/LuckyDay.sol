@@ -33,8 +33,9 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {  
     
     
-    uint256 public MAX_SUPPLY = 20000; // 20,000 in real thing
+    uint256 public maxSupply = 6; // 20,000 in real thing
     uint256 public cost = 0.05 ether;  // cost of minting // EDIT FOR POLYGON %%%%%%%
+    uint256 mintsPerTx = 5; // 50 in actual %%%
     
     bool public generalSaleStatus = false;
     
@@ -42,7 +43,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     uint public firstRaffleTimestamp = 1637771383; // EDIT BEFORE PRODUCTION DEPLOYMENT %%%%%%%%%
     uint public numberOfDraws;
     
-    string public baseURI = "ipfs://QmfJctvqKgik28etZYtZUAbiQmZ7amj7rpsuEZjxFVmgEL/"; // %%%%%%%%%
+    string public baseURI = "testURI"; // %%%%%%%%%
     
     address payable A = payable(0x8641748C05C3AbB0a29A07c8A425c160dCB5Ade1); // %%%%%%%%%%
     address payable B = payable(0xB70D6076ee01Be23C93aadF00754864c82cc44A8); // %%%%%%%%%%
@@ -98,8 +99,8 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         
         require(generalSaleStatus, "It's not time yet"); // checks general sale is live
         require(msg.value == _num * cost, "Incorrect funds supplied"); // mint cost
-        require(_num > 0 && _num <= 50, "Maximum of 50 mints allowed"); // mint limit per tx
-        require(totalSupply() + _num <= MAX_SUPPLY, "Minting that many would exceed max supply");
+        require(_num > 0 && _num <= mintsPerTx, "Maximum of 50 mints allowed"); // mint limit per tx
+        require(totalSupply() + _num <= maxSupply, "Minting that many would exceed max supply");
         
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
@@ -238,7 +239,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     function airDrop(address[] calldata _to) external onlyOwner {
         for (uint i=0; i<_to.length; i++) {
             uint tokenId = totalSupply() + 1;
-            require(tokenId <= MAX_SUPPLY, "All tokens have been minted");
+            require(tokenId <= maxSupply, "All tokens have been minted");
             _mint(_to[i], tokenId);
             emit TokenMinted(tokenId);
         }
