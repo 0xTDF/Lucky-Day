@@ -53,10 +53,11 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     // VRF VARIABLES //
     
     bytes32 public keyHash = 0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4; // for Polygon Mumbai Test Network ONLY %%%%%
-    uint256 public fee = 0.0001 * 10 ** 18; // 0.0001 LINK VRF fee for Polygon ONLY %%%%
+    uint256 public fee = 0.0001 * 10 ** 18; // 0.0001 LINK VRF fee for Polygon ONLY 
     uint256 public randomResult;
 
-   
+    address vrfCoordinator = 0x8C7382F9D8f56b33781fE506E897a4F1e2d17255; // MUMBAI TESTNET ONLY %%%%
+    address linkTokenAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB; // MUMBAI TESTNET ONLY %%%%
     
     // CONSTRUCTOR //
     
@@ -68,8 +69,8 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         Ownable() 
         ERC721("Lucky Day", "LUCKY") 
         VRFConsumerBase(
-            0x8C7382F9D8f56b33781fE506E897a4F1e2d17255,  // VRF Coordinator for Polygon Mumbai Test Network ONLY %%%%
-            0x326C977E6efc84E512bB9C30f76E30c160eD06FB  // LINK Token address on Polygon Mumbai Test Network ONLY %%%%
+            vrfCoordinator,  // VRF Coordinator for Polygon Mumbai Test Network ONLY %%%%
+            linkTokenAddress  // LINK Token address on Polygon Mumbai Test Network ONLY %%%%
         ) {}
     
     
@@ -125,7 +126,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     
     function startRaffleDraw() public {
         require(LINK.balanceOf(address(this)) >= fee, "Insufficient LINK to cover VRF fee");
-        //require(block.timestamp >= (firstRaffleTimestamp + (numberOfDraws*7*24*60*60)), "It's not time yet!"); 
+        require(block.timestamp >= (firstRaffleTimestamp + (numberOfDraws*7*24*60*60)), "It's not time yet!"); 
         numberOfDraws++;
         outstandingVRFcalls[getRandomNumber()] = true;
     }
@@ -143,6 +144,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         
+        require(msg.sender == vrfCoordinator);
         require(outstandingVRFcalls[requestId], "No outstanding VRF call for this requestId");
         outstandingVRFcalls[requestId] = false;
         
@@ -150,9 +152,11 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         emit WinningTokenId(randomResult);
 
         winner = ownerOf(randomResult); // gets address of winning token owner
-        winnings = address(this).balance / 10; 
+        uint onePercent = address(this).balance / 100;
+
+        A.transfer(onePercent); // CHANGE to be multisig address
         
-        payable(winner).transfer(winnings);
+        payable(winner).transfer(49*onePercent);
     }
     
     
