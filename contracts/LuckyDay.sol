@@ -144,7 +144,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         
-        require(msg.sender == vrfCoordinator);
+        require(msg.sender == vrfCoordinator); // test this works as intended
         require(outstandingVRFcalls[requestId], "No outstanding VRF call for this requestId");
         outstandingVRFcalls[requestId] = false;
         
