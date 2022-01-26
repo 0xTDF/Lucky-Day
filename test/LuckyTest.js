@@ -1,7 +1,7 @@
 
 // truffle test test/LuckyTest.js --compile-none
 
-
+const wETHmock = artifacts.require("wETHmock");
 const LuckyDay = artifacts.require("LuckyDay");
 
 var chai = require("./setupchai.js");
@@ -14,23 +14,27 @@ const { assert } = require('chai');
 
 contract("Lucky Day", async accounts => {
 
+    let wETH;
     let ld;
     
     beforeEach(async () => {
-        ld = await LuckyDay.new();
+        wETH = await wETHmock.new();
+        ld = await LuckyDay.new(wETH.address);
+        
     });
 
+    
     it('has default values', async () => {
 
         expect(await ld.maxSupply()).to.be.a.bignumber.equal(new BN(6)) // 20,000 in actual
-        expect(await ld.cost()).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.05', 'ether')))
+        expect(await ld.cost()).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.025', 'ether')))
     
-        expect(await ld.generalSaleStatus()).to.equal(false)
+        expect(await ld.preSaleStatus()).to.equal(false)
+        expect(await ld.publicSaleStatus()).to.equal(false)
     
     
         expect(await ld.name()).to.equal('Lucky Day')
         expect(await ld.symbol()).to.equal('LUCKY')
-        expect(await ld.baseURI()).to.equal('testURI')
     
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
         expect(await ld.numberOfDraws()).to.be.a.bignumber.equal(new BN(0))
@@ -41,21 +45,29 @@ contract("Lucky Day", async accounts => {
     it('can change sale status', async () => {
 
         // initial values
-        expect(await ld.generalSaleStatus()).to.equal(false)
+        expect(await ld.publicSaleStatus()).to.equal(false)
+        expect(await ld.preSaleStatus()).to.equal(false)
 
-        // only general live
-        await ld.setGeneralSaleStatus(true)
-        expect(await ld.generalSaleStatus()).to.equal(true)
+        // only pre sale live
+        await ld.setPreSaleStatus(true)
+        expect(await ld.preSaleStatus()).to.equal(true)
+        expect(await ld.publicSaleStatus()).to.equal(false)
+
+        // only public live
+        await ld.setPublicSaleStatus(true)
+        expect(await ld.publicSaleStatus()).to.equal(true)
+        expect(await ld.preSaleStatus()).to.equal(false)
 
         // everyhting not live
-        await ld.setGeneralSaleStatus(false)
-        expect(await ld.generalSaleStatus()).to.equal(false)
+        await ld.setPublicSaleStatus(false)
+        expect(await ld.publicSaleStatus()).to.equal(false)
+        expect(await ld.preSaleStatus()).to.equal(false)
     })
 
     
     it('owner can set mint cost', async () => {
 
-        expect(await ld.cost()).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.05', 'ether')))
+        expect(await ld.cost()).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.025', 'ether')))
         await ld.setCost(web3.utils.toWei('1', 'ether'))
         expect(await ld.cost()).to.be.a.bignumber.equal(new BN(web3.utils.toWei('1', 'ether')))
 
@@ -76,19 +88,19 @@ contract("Lucky Day", async accounts => {
     
     })
 
-
-    it('can mint from general sale but no more than MAX_SUPPLY and no more than 50 per tx', async () => {
+    /*
+    it('can mint from public sale but no more than MAX_SUPPLY and no more than 50 per tx', async () => {
 
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
 
-        // tries to mint before general sale live
+        // tries to mint before public sale live
         await truffleAssert.reverts(
             ld.mint(1, { value: 0.05e18, from: accounts[9] }),
             "It's not time yet"
         );
 
-        await ld.setGeneralSaleStatus(true) 
-        expect(await ld.generalSaleStatus()).to.equal(true)
+        await ld.setpublicSaleStatus(true) 
+        expect(await ld.publicSaleStatus()).to.equal(true)
 
         // tries to mint more than 5 tokens
         await truffleAssert.reverts(
@@ -111,13 +123,13 @@ contract("Lucky Day", async accounts => {
     })
 
     
-
+    
     it('returns token URI but only for minted tokens', async () => {
 
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
 
-        await ld.setGeneralSaleStatus(true)
-        expect(await ld.generalSaleStatus()).to.equal(true)
+        await ld.setpublicSaleStatus(true)
+        expect(await ld.publicSaleStatus()).to.equal(true)
 
         // tries to read tokenURI for token yet to be minted
         await truffleAssert.reverts(
@@ -139,10 +151,10 @@ contract("Lucky Day", async accounts => {
     it('can set base URI', async () => {
 
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
-        await ld.setGeneralSaleStatus(true)
-        expect(await ld.generalSaleStatus()).to.equal(true)
+        await ld.setpublicSaleStatus(true)
+        expect(await ld.publicSaleStatus()).to.equal(true)
 
-        await ld.mint(1, { value: 0.05e18, from: accounts[9] })
+        await ld.mint(1, { value: 0.025e18, from: accounts[9] })
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(1))
         expect(await ld.tokenURI(1)).to.equal('testURI1.json')
 
@@ -150,6 +162,7 @@ contract("Lucky Day", async accounts => {
         expect(await ld.tokenURI(1)).to.equal('editedBaseURI1.json')
 
     })
+    */
     
 
     

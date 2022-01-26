@@ -23,23 +23,36 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 
+/**
+ * @dev ERC20 token interface
+ */
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+
+
+
 
 
 
 /**
- * @title FiftyFifty
- * @dev Contract, inheriting from Ownable.sol and VRFConsumerBase.sol, for player vs player betting.
+ * @title LuckyDay
+ * @dev 20,000 NFT 'charms' acting as tickets to a perpetual lottery funded by token sales.
  */
-contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {  
+contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
+
+    IERC20 internal wETH; // = IERC20(0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619);
+
     
-    uint16[16] rarityDistribution = [9200, 15200, 18200, 19800, 20000]; 
-    uint16[5] rarities = [1, 2, 3, 4, 5];
-    uint256[5] rarityCount = [0, 0, 0, 0, 0];
+    uint[16] rarityDistribution = [1, 2, 4, 6, 7]; // [9200, 15200, 18200, 19800, 20000]; 
+    uint[5] rarities = [1, 2, 3, 4, 5];
+    uint[5] rarityCount = [0, 0, 0, 0, 0];
+    uint[5] rarityPercentage = [50, 60, 75, 85, 100];
 
     uint nonce;
     
     uint256 public maxSupply = 6; // 20,000 in real thing
-    uint256 public cost = 0.05 ether;  // 0.025 wETH in actual // cost of minting // EDIT FOR POLYGON %%%%%%%
+    uint256 reservesLeft = 100;
+    uint256 public cost = 0.025 ether;  // 0.025 wETH in actual // cost of minting // EDIT FOR POLYGON %%%%%%%
     uint256 mintsPerTx = 5; // 50 in actual %%%
     
     bool public preSaleStatus;
@@ -69,13 +82,15 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
      * @dev  Chainlink VRF set up for Polygon Mumbai Test Network -- For main net deployment see [https://docs.chain.link/docs/vrf-contracts/]
      * 
      */
-    constructor() 
+    constructor(address _wETHaddress) 
         Ownable() 
         ERC721("Lucky Day", "LUCKY") 
         VRFConsumerBase(
             vrfCoordinator,  // VRF Coordinator for Polygon Mumbai Test Network ONLY %%%%
             linkTokenAddress  // LINK Token address on Polygon Mumbai Test Network ONLY %%%%
-        ) {}
+        ) {
+            wETH = IERC20(_wETHaddress);
+        }
     
     
     // EVENTS //
@@ -89,13 +104,13 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     
     mapping(bytes32 => bool) outstandingVRFcalls;
     mapping(address => bool) whitelist;
-    mapping(uint => uint) tokenRarityMap;
-    mapping(uint => uint) tokenRarityId;
+    mapping(uint => uint) tokenRarityMap; // tokenId => rarity value (1-5)
+    mapping(uint => uint) tokenRarityId; // tokenId to token number of rarity type at mint
     mapping(uint => string) public rarityURI;
     
     
     /**
-     *   @notice Will receive any tokens sent to the contract
+     *   @notice Receives any tokens sent to the contract
      */
     receive() external payable {}
     
@@ -112,9 +127,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             require(publicSaleStatus, "It's not time yet"); // checks public sale is live
         }
         
-        require(msg.value == _num * cost, "Incorrect funds supplied"); // mint cost
-        require(_num > 0 && _num <= mintsPerTx, "Maximum of 50 mints per tx"); // mint limit per tx
-        require(totalSupply() + _num <= maxSupply, "Minting that many would exceed max supply");
+        require(_num * cost <= wETH.allowance(msg.sender, address(this)), "Must first approve wETH to be spent by this contract");
+        require(_num > 0 && _num <= mintsPerTx, "Maximum of 50 mints per tx"); // mint limit per tx // POTENTIALLY REMOVE
+        require(totalSupply() + _num + reservesLeft <= maxSupply, "Minting that many would exceed max supply");
         
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
@@ -125,7 +140,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             emit TokenMinted(tokenId);
         }
 
-        uint commission = msg.value / 15;
+        uint commission = (msg.value*100) / 15;
         team.transfer(commission);
         
     }
@@ -140,7 +155,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
      */
     function assignRarity(address _minter) public returns(uint) {
 
-        uint rand = uint(keccak256(abi.encodePacked(_minter, block.timestamp, nonce))); 
+        uint rand = nonce; //uint(keccak256(abi.encodePacked(_minter, block.timestamp, nonce))); 
         rand = (rand % totalSupply()) + 1; // 1-totalSupply
         nonce++;
         
@@ -195,7 +210,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
 
         team.transfer(onePercent); // CHANGE to be multisig address
         
-        payable(winner).transfer(50*onePercent);
+        payable(winner).transfer(50*onePercent*(rarityPercentage[tokenRarityMap[randomResult] - 1])/100);
     }
 
     
@@ -228,6 +243,8 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     function viewLinkBalance() public view returns(uint) {
         return LINK.balanceOf(address(this)); 
     }
+
+    
     
     
   
@@ -307,10 +324,16 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
      * @param _to - array of address' that tokens will be sent to
      */
     function airDrop(address[] calldata _to) external onlyOwner {
+
+        require(totalSupply() + _to.length <= maxSupply, "All tokens have been minted");
+
         for (uint i=0; i<_to.length; i++) {
             uint tokenId = totalSupply() + 1;
-            require(tokenId <= maxSupply, "All tokens have been minted");
             _mint(_to[i], tokenId);
+            uint tokenRarity = assignRarity(_to[i]);
+            tokenRarityMap[tokenId] = tokenRarity;
+            tokenRarityId[tokenId] = rarityCount[tokenRarity];
+            reservesLeft--;
             emit TokenMinted(tokenId);
         }
         
