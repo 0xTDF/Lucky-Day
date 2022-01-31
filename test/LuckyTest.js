@@ -19,8 +19,7 @@ contract("Lucky Day", async accounts => {
     
     beforeEach(async () => {
         wETH = await wETHmock.new();
-        ld = await LuckyDay.new(wETH.address);
-        
+        ld = await LuckyDay.new(wETH.address, accounts[9]);        
     });
 
     
@@ -88,47 +87,52 @@ contract("Lucky Day", async accounts => {
     
     })
 
-    /*
-    it('can mint from public sale but no more than MAX_SUPPLY and no more than 50 per tx', async () => {
+    
+    it('can mint from public sale', async () => {
 
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
 
         // tries to mint before public sale live
         await truffleAssert.reverts(
-            ld.mint(1, { value: 0.05e18, from: accounts[9] }),
+            ld.mint(1),
             "It's not time yet"
         );
 
-        await ld.setpublicSaleStatus(true) 
+        await ld.setPublicSaleStatus(true) 
         expect(await ld.publicSaleStatus()).to.equal(true)
 
-        // tries to mint more than 5 tokens
+        // tries to mint before approving
         await truffleAssert.reverts(
-            ld.mint(6, { value: 0.3e18, from: accounts[9] }),
-            "Maximum of 50 mints allowed"
+            ld.mint(1),
+            "Must directly approve wETH first"
         );
-
-        await ld.mint(4, { value: 0.2e18, from: accounts[9] })
+        
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
+        await wETH.approve(ld.address, new BN(web3.utils.toWei('0.125', 'ether')));
+        await ld.mint(3)
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(3))
 
         // tries to mint tokens that would exceed MAX_SUPPLY
         await truffleAssert.reverts(
-            ld.mint(3, { value: 0.15e18, from: accounts[9] }),
+            ld.mint(2),
             "Minting that many would exceed max supply"
         );
 
-        await ld.mint(2, { value: 0.1e18, from: accounts[9] })
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(6))
-    
+        await ld.mint(1)
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(4))
+        
+        console.log((await wETH.balanceOf(ld.address)).toString())
+        console.log((await wETH.balanceOf(accounts[9])).toString())
     
     })
 
     
-    
+    /*
     it('returns token URI but only for minted tokens', async () => {
 
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
 
-        await ld.setpublicSaleStatus(true)
+        await ld.setPublicSaleStatus(true)
         expect(await ld.publicSaleStatus()).to.equal(true)
 
         // tries to read tokenURI for token yet to be minted
@@ -137,33 +141,16 @@ contract("Lucky Day", async accounts => {
             "ERC721Metadata: URI query for nonexistent token"
         );
         
-        await ld.mint(1, { value: 0.05e18, from: accounts[9] })
+        await wETH.approve(ld.address, new BN(web3.utils.toWei('0.25', 'ether')));
+        await ld.mint(1)
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(1))
-        expect(await ld.tokenURI(1)).to.equal('testURI1.json')
+        expect(await ld.tokenURI(1)).to.equal('01.json')
 
-        await ld.mint(1, { value: 0.05e18, from: accounts[9] })
+        await ld.mint(1)
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(2))
-        expect(await ld.tokenURI(2)).to.equal('testURI2.json')
+        expect(await ld.tokenURI(2)).to.equal('01.json')
     
-    })
-
-
-    it('can set base URI', async () => {
-
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
-        await ld.setpublicSaleStatus(true)
-        expect(await ld.publicSaleStatus()).to.equal(true)
-
-        await ld.mint(1, { value: 0.025e18, from: accounts[9] })
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(1))
-        expect(await ld.tokenURI(1)).to.equal('testURI1.json')
-
-        await ld.setBaseUri('editedBaseURI')
-        expect(await ld.tokenURI(1)).to.equal('editedBaseURI1.json')
-
     })
     */
-    
-
     
 })

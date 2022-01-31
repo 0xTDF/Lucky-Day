@@ -50,8 +50,8 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
 
     uint nonce;
     
-    uint256 public maxSupply = 6; // 20,000 in real thing
-    uint256 reservesLeft = 100;
+    uint256 public maxSupply = 6; // 20,000; in real thing
+    uint256 reservesLeft = 2; // 100; in real thing
     uint256 public cost = 0.025 ether;  // 0.025 wETH in actual // cost of minting // EDIT FOR POLYGON %%%%%%%
     uint256 mintsPerTx = 5; // 50 in actual %%%
     
@@ -60,10 +60,11 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     
     uint public firstRaffleTimestamp = 1637771383; // EDIT BEFORE PRODUCTION DEPLOYMENT %%%%%%%%%
     uint public numberOfDraws;
+    uint public prizePoolPercentage = 50; // Max amount of prize pool that can be won (i.e. raffle winner holds rarest token type)
     
     string public baseExtension = ".json";
     
-    address payable team = payable(0x8641748C05C3AbB0a29A07c8A425c160dCB5Ade1); // %%%%%%%%%%
+    address team; // %%%%%%%%%%
     
 
     // --- VRF VARIABLES --- //
@@ -82,7 +83,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
      * @dev  Chainlink VRF set up for Polygon Mumbai Test Network -- For main net deployment see [https://docs.chain.link/docs/vrf-contracts/]
      * 
      */
-    constructor(address _wETHaddress) 
+    constructor(address _wETHaddress, address _teamAddress) 
         Ownable() 
         ERC721("Lucky Day", "LUCKY") 
         VRFConsumerBase(
@@ -90,6 +91,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             linkTokenAddress  // LINK Token address on Polygon Mumbai Test Network ONLY %%%%
         ) {
             wETH = IERC20(_wETHaddress);
+
+            rarityURI[1] = "one"; // EDIT
+            team = _teamAddress;
         }
     
     
@@ -127,21 +131,24 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
             require(publicSaleStatus, "It's not time yet"); // checks public sale is live
         }
         
-        require(_num * cost <= wETH.allowance(msg.sender, address(this)), "Must first approve wETH to be spent by this contract");
-        require(_num > 0 && _num <= mintsPerTx, "Maximum of 50 mints per tx"); // mint limit per tx // POTENTIALLY REMOVE
+        require(_num * cost <= wETH.allowance(msg.sender, address(this)), "Must directly approve wETH first");
         require(totalSupply() + _num + reservesLeft <= maxSupply, "Minting that many would exceed max supply");
+
+        wETH.transferFrom(msg.sender, address(this), _num*cost);
         
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
             _mint(msg.sender, tokenId);
+            /*
             uint tokenRarity = assignRarity(msg.sender);
             tokenRarityMap[tokenId] = tokenRarity;
             tokenRarityId[tokenId] = rarityCount[tokenRarity];
+            */
             emit TokenMinted(tokenId);
         }
 
-        uint commission = (msg.value*100) / 15;
-        team.transfer(commission);
+        uint commission = (_num*cost*15) / 100;
+        wETH.transfer(team, commission);
         
     }
     
@@ -208,9 +215,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         winner = ownerOf(randomResult); // gets address of winning token owner
         uint onePercent = address(this).balance / 100;
 
-        team.transfer(onePercent); // CHANGE to be multisig address
+        wETH.transfer(team, onePercent); // CHANGE to be multisig address
         
-        payable(winner).transfer(50*onePercent*(rarityPercentage[tokenRarityMap[randomResult] - 1])/100);
+        payable(winner).transfer(prizePoolPercentage*onePercent*(rarityPercentage[tokenRarityMap[randomResult] - 1])/100);
     }
 
     
@@ -250,27 +257,16 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
   
     //  ONLY OWNER //
 
+
+    
     /**
-     * @dev Withdraw amount '_amount' of LINK from smart contract to address '_to'. Unit: wei
+     * @dev Withdraw amount '_amount' of any ERC20 token from the smart contract transfering it to address '_recipient'. Unit: wei
      * 
-     * Note: Only contract owner can call.
+     * Note: Only contract owner can call. wETH withdrawals are prohibited.
      */
-    function withdrawLink(uint _amount, address payable _to) public onlyOwner {
-        
-        require(_amount <= LINK.balanceOf(address(this)), "Withdrawel amount greater than balance.");
-        
-        LINK.transfer(_to, _amount);  // withdraws amount '_amount' to specified address '_to'
-        
-    }
-    
-    
-    /**
-     * @dev Set the status of the public sale
-     * @param _status boolean where true = live 
-     */
-    function setPublicSaleStatus(bool _status) external onlyOwner {
-        preSaleStatus = false;
-        publicSaleStatus = _status;
+    function withdrawTokens(IERC20 _tokenAddress, uint _amount, address payable _recipient) external onlyOwner {
+        require(_tokenAddress != IERC20(0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619), "wETH withdrawal is prohibited");
+        IERC20(_tokenAddress).transfer(_recipient, _amount);
     }
 
     /**
@@ -282,6 +278,15 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         preSaleStatus = _status;
     }
     
+    /**
+     * @dev Set the status of the public sale
+     * @param _status boolean where true = live 
+     */
+    function setPublicSaleStatus(bool _status) external onlyOwner {
+        preSaleStatus = false;
+        publicSaleStatus = _status;
+    }
+    
     
     /**
      * @dev Set the cost of minting a token
@@ -291,6 +296,14 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         cost = _newCost;
     }
     
+
+    /**
+     * @dev Set the maximum prize pool % that can be won by a raffle winner if winning token is rarest type
+     * @param _newPercentage - % of wETH in prize pool
+     */
+    function setPrizePoolPercentage(uint _newPercentage) external onlyOwner {
+        prizePoolPercentage = _newPercentage;
+    }
     
     /**
      * @dev Set the baseURI string
@@ -330,22 +343,18 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         for (uint i=0; i<_to.length; i++) {
             uint tokenId = totalSupply() + 1;
             _mint(_to[i], tokenId);
+            /*
             uint tokenRarity = assignRarity(_to[i]);
             tokenRarityMap[tokenId] = tokenRarity;
             tokenRarityId[tokenId] = rarityCount[tokenRarity];
+            */
             reservesLeft--;
             emit TokenMinted(tokenId);
         }
         
     }
 
-    /**
-     * @dev Set mintsPerTx variable
-     * @param _limit - number of tokens buyers will be able to mint per transaction
-     */
-    function setMintsPerTx(uint _limit) external onlyOwner{
-        mintsPerTx = _limit;
-    }
+    
 
 
 
