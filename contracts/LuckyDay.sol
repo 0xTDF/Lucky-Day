@@ -10,26 +10,20 @@ pragma solidity ^0.8.7;
  */
 import "@openzeppelin/contracts/access/Ownable.sol";  
 
-
 /**
  * @dev ERC721 token standard
  */
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-
 
 /**
  * @dev Contract module which provides verifiable randomness 
  */
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
-
 /**
  * @dev ERC20 token interface
  */
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-
-
 
 
 
@@ -43,9 +37,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     IERC20 internal wETH; // = IERC20(0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619);
 
     
-    uint[16] rarityDistribution = [1, 2, 4, 6, 7]; // [9200, 15200, 18200, 19800, 20000]; 
+    uint[16] rarityDistribution = [1, 2, 4, 6, 7]; // production values: [9200, 15200, 18200, 19800, 20000]; 
     uint[5] rarities = [1, 2, 3, 4, 5];
-    uint[5] rarityCount = [0, 0, 0, 0, 0];
+    uint[5] public rarityCount = [0, 0, 0, 0, 0]; // edit visibility
     uint[5] rarityPercentage = [50, 60, 75, 85, 100];
 
     uint nonce;
@@ -64,7 +58,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     
     string public baseExtension = ".json";
     
-    address team; // %%%%%%%%%%
+    address team; // main net gnosis: 0x1873470f8B87B0F5B9484c06B65de7e945E58298
     
 
     // --- VRF VARIABLES --- //
@@ -139,11 +133,11 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
         for (uint256 i = 0; i < _num; i++) {
             uint tokenId = totalSupply() + 1;
             _mint(msg.sender, tokenId);
-            /*
+            
             uint tokenRarity = assignRarity(msg.sender);
             tokenRarityMap[tokenId] = tokenRarity;
             tokenRarityId[tokenId] = rarityCount[tokenRarity];
-            */
+            
             emit TokenMinted(tokenId);
         }
 
@@ -160,10 +154,9 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
     /**
      * @dev Randomly generates token rarity based on weighted statistical distribution
      */
-    function assignRarity(address _minter) public returns(uint) {
+    function assignRarity(address _minter) public returns(uint) { // EDIT: change visibility
 
-        uint rand = nonce; //uint(keccak256(abi.encodePacked(_minter, block.timestamp, nonce))); 
-        rand = (rand % totalSupply()) + 1; // 1-totalSupply
+        uint rand = nonce; //(uint(keccak256(abi.encodePacked(_minter, block.timestamp, nonce))) % (maxSupply - totalSupply())) + 1; // 1-totalSupply
         nonce++;
         
         uint i = 0;

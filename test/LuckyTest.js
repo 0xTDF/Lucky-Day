@@ -90,7 +90,7 @@ contract("Lucky Day", async accounts => {
     
     it('can mint from public sale', async () => {
 
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0));
 
         // tries to mint before public sale live
         await truffleAssert.reverts(
@@ -98,8 +98,8 @@ contract("Lucky Day", async accounts => {
             "It's not time yet"
         );
 
-        await ld.setPublicSaleStatus(true) 
-        expect(await ld.publicSaleStatus()).to.equal(true)
+        await ld.setPublicSaleStatus(true);
+        expect(await ld.publicSaleStatus()).to.equal(true);
 
         // tries to mint before approving
         await truffleAssert.reverts(
@@ -107,10 +107,10 @@ contract("Lucky Day", async accounts => {
             "Must directly approve wETH first"
         );
         
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0))
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(0));
         await wETH.approve(ld.address, new BN(web3.utils.toWei('0.125', 'ether')));
-        await ld.mint(3)
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(3))
+        await ld.mint(3);
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(3));
 
         // tries to mint tokens that would exceed MAX_SUPPLY
         await truffleAssert.reverts(
@@ -118,11 +118,11 @@ contract("Lucky Day", async accounts => {
             "Minting that many would exceed max supply"
         );
 
-        await ld.mint(1)
-        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(4))
+        await ld.mint(1);
+        expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(4));
         
-        console.log((await wETH.balanceOf(ld.address)).toString())
-        console.log((await wETH.balanceOf(accounts[9])).toString())
+        expect(await wETH.balanceOf(ld.address)).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.085', 'ether')));
+        expect(await wETH.balanceOf(accounts[9])).to.be.a.bignumber.equal(new BN(web3.utils.toWei('0.015', 'ether')));
     
     })
 
@@ -148,9 +148,10 @@ contract("Lucky Day", async accounts => {
 
         await ld.mint(1)
         expect(await ld.totalSupply()).to.be.a.bignumber.equal(new BN(2))
-        expect(await ld.tokenURI(2)).to.equal('01.json')
+        expect(await ld.tokenURI(2)).to.equal('02.json')
     
     })
     */
+    
     
 })
