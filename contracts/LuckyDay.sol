@@ -331,6 +331,7 @@ contract LuckyDay is Ownable, ERC721Enumerable, VRFConsumerBase {
      */
     function airDrop(address[] calldata _to) external onlyOwner {
 
+        require(_to.length <= reservesLeft, "Minting that many would exceed reserves left.");
         require(totalSupply() + _to.length <= maxSupply, "All tokens have been minted");
 
         for (uint i=0; i<_to.length; i++) {
