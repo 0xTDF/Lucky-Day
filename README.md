@@ -1,10 +1,5 @@
 # Lucky-Day
 
-- Look in to minting / prize giving in wETH
-- Reserve 100 tokens for giveaways etc
-- Send team % to multisig type contract
+Lucky Day is an art-finance experiment combining a collection of 20 unique artworks, lottery mechanics, and smart contracts. The project consists of 20,000 luck-themed NFTs, called “Charms”, that not only have collectible appeal, but also effectively act as tickets in a perpetual lottery.
 
-- win amount depends on token rarity
-- random rarity assignment
-
-- create separate prize pool contract to store funds
+[not prod ready]
